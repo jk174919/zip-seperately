@@ -1,4 +1,3 @@
-Attempting to perform the InitializeDefaultDrives operation on the 'FileSystem' provider failed.
 """FolderZipTool: create one ZIP archive for each selected folder."""
 
 from __future__ import annotations
