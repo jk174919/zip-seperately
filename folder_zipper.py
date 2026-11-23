@@ -29,7 +29,7 @@ class FolderZipApp:
         ttk.Label(outer, text="FolderZipTool", font=("Segoe UI", 20, "bold")).pack(anchor="w")
         ttk.Label(
             outer,
-            text="Select folders and create a separate ZIP archive for each one.",
+            text="Choose a parent to add all its subfolders, then create one same-named ZIP in a folder for each selection.",
             font=("Segoe UI", 10),
         ).pack(anchor="w", pady=(2, 14))
 
@@ -38,6 +38,8 @@ class FolderZipApp:
         ttk.Label(folder_bar, text="Folders to ZIP", font=("Segoe UI", 11, "bold")).pack(side="left")
         self.add_button = ttk.Button(folder_bar, text="＋ Add folder", command=self.add_folder)
         self.add_button.pack(side="right")
+        self.add_parent_button = ttk.Button(folder_bar, text="Choose parent folder…", command=self.add_child_folders)
+        self.add_parent_button.pack(side="right", padx=(0, 8))
 
         list_frame = ttk.Frame(outer)
         list_frame.pack(fill="both", expand=True)
@@ -52,7 +54,8 @@ class FolderZipApp:
 
         list_actions = ttk.Frame(outer)
         list_actions.pack(fill="x", pady=(6, 16))
-        ttk.Button(list_actions, text="Remove selected", command=self.remove_selected).pack(side="left")
+        ttk.Button(list_actions, text="Select all", command=self.select_all).pack(side="left")
+        ttk.Button(list_actions, text="Remove selected", command=self.remove_selected).pack(side="left", padx=(8, 0))
         ttk.Button(list_actions, text="Clear list", command=self.clear_list).pack(side="left", padx=(8, 0))
 
         ttk.Label(outer, text="Save ZIP files in", font=("Segoe UI", 11, "bold")).pack(anchor="w")
@@ -83,6 +86,36 @@ class FolderZipApp:
             else:
                 self.status.set(f"Already added: {path.name}")
 
+    def add_child_folders(self) -> None:
+        parent = filedialog.askdirectory(title="Choose a parent folder containing the folders to ZIP", mustexist=True)
+        if not parent:
+            return
+        try:
+            children = sorted((path for path in Path(parent).iterdir() if path.is_dir() and not path.is_symlink()), key=lambda p: p.name.casefold())
+        except OSError as exc:
+            messagebox.showerror("Could not read folder", str(exc))
+            return
+        if not children:
+            messagebox.showinfo("No folders found", "The chosen folder has no subfolders to add.")
+            return
+        known = set(self.folders)
+        added = 0
+        for path in children:
+            resolved = path.resolve()
+            if resolved not in known:
+                self.folders.append(resolved)
+                self.folder_list.insert(END, str(resolved))
+                known.add(resolved)
+                added += 1
+        if added:
+            self.select_all()
+            self.status.set(f"Added and selected {added} folder(s) from {Path(parent).name}")
+        else:
+            self.status.set("All subfolders from that location are already in the list")
+
+    def select_all(self) -> None:
+        self.folder_list.selection_set(0, END)
+
     def remove_selected(self) -> None:
         for index in reversed(self.folder_list.curselection()):
             self.folder_list.delete(index)
@@ -105,9 +138,11 @@ class FolderZipApp:
         if destination is None or not destination.is_dir():
             messagebox.showinfo("Choose a save location", "Choose an existing folder for the ZIP files.")
             return
-        folders = list(self.folders)
+        selected = self.folder_list.curselection()
+        folders = [self.folders[index] for index in selected] if selected else list(self.folders)
         self.zip_button.configure(state="disabled")
         self.add_button.configure(state="disabled")
+        self.add_parent_button.configure(state="disabled")
         self.progress.configure(maximum=len(folders), value=0)
         self.status.set("Starting…")
         threading.Thread(target=self.zip_folders, args=(folders, destination), daemon=True).start()
@@ -124,8 +159,10 @@ class FolderZipApp:
                 archive_name = f"{name} ({number}).zip"
                 number += 1
             used_names.add(archive_name.casefold())
-            target = destination / archive_name
+            output_folder = destination / name
+            target = output_folder / archive_name
             try:
+                output_folder.mkdir(parents=True, exist_ok=True)
                 with zipfile.ZipFile(target, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=6, allowZip64=True) as archive:
                     for current, dirnames, filenames in os.walk(folder, followlinks=False):
                         current_path = Path(current)
@@ -154,6 +191,7 @@ class FolderZipApp:
                     completed, errors, destination = payload  # type: ignore[misc]
                     self.zip_button.configure(state="normal")
                     self.add_button.configure(state="normal")
+                    self.add_parent_button.configure(state="normal")
                     self.status.set(f"Finished: {completed} ZIP file(s) created")
                     if errors:
                         messagebox.showwarning(
