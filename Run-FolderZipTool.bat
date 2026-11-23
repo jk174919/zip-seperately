@@ -1,4 +1,3 @@
-Attempting to perform the InitializeDefaultDrives operation on the 'FileSystem' provider failed.
 @echo off
 setlocal
 cd /d "%~dp0"
