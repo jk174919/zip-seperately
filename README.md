@@ -1,4 +1,3 @@
-Attempting to perform the InitializeDefaultDrives operation on the 'FileSystem' provider failed.
 # FolderZipTool
 
 A small Windows desktop app that makes one ZIP archive per selected folder. Choose a parent folder to add all of its immediate subfolders at once, then click **Create ZIP files**. Each archive is saved in its own same-named output folder, for example `destination\Photos\Photos.zip`. Folder contents stay grouped under the folder name inside each archive.
