@@ -1,4 +1,3 @@
-Attempting to perform the InitializeDefaultDrives operation on the 'FileSystem' provider failed.
 #define MyAppName "FolderZipTool"
 #define MyAppVersion "1.0.0"
 #define MyAppPublisher "FolderZipTool"
